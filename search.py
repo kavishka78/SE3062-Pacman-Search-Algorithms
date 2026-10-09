@@ -137,7 +137,31 @@ def breadthFirstSearch(problem: SearchProblem):
 def uniformCostSearch(problem: SearchProblem):
     """Search the node of least total cost first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    fringe = util.PriorityQueue()
+    start_state = problem.getStartState()
+    
+    # Push (state, actions, cost) with cost as priority
+    fringe.push((start_state, [], 0), 0)
+
+    visited = set()
+
+    while not fringe.isEmpty():
+        state, actions, current_cost = fringe.pop()
+
+        # Goal check when popped
+        if problem.isGoalState(state):
+            return actions
+
+        # Standard graph search visited set check
+        if state not in visited:
+            visited.add(state)
+
+            for successor, action, step_cost in problem.getSuccessors(state):
+                if successor not in visited:
+                    new_cost = current_cost + step_cost
+                    fringe.push((successor, actions + [action], new_cost), new_cost)
+
+    return []
 
 def nullHeuristic(state, problem=None):
     """
@@ -149,7 +173,38 @@ def nullHeuristic(state, problem=None):
 def aStarSearch(problem: SearchProblem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    fringe = util.PriorityQueue()
+    start_state = problem.getStartState()
+    
+    # Priority f(n) = g(n) + h(n)
+    start_g = 0
+    start_h = heuristic(start_state, problem)
+    start_f = start_g + start_h
+
+    # Push into Priority Queue
+    fringe.push((start_state, [], start_g), start_f)
+
+    visited = set()
+
+    while not fringe.isEmpty():
+        state, actions, g_cost = fringe.pop()
+
+        # Goal check when popped
+        if problem.isGoalState(state):
+            return actions
+
+        # visited check
+        if state not in visited:
+            visited.add(state)
+
+            for successor, action, step_cost in problem.getSuccessors(state):
+                if successor not in visited:
+                    new_g = g_cost + step_cost
+                    new_h = heuristic(successor, problem)
+                    new_f = new_g + new_h
+                    fringe.push((successor, actions + [action], new_g), new_f)
+
+    return []
 
 
 # Abbreviations
