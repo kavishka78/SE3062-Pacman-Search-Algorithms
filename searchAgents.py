@@ -513,14 +513,15 @@ def _foodDistanceMap(start: Tuple[int, int], problem: FoodSearchProblem):
         distanceMaps[start] = distances
     return distanceMaps[start]
 
-def _foodManhattanTreeCost(foodLocations: List[Tuple[int, int]]):
+def _foodMazeTreeCost(foodLocations: List[Tuple[int, int]],
+                      problem: FoodSearchProblem):
     unconnected = set(foodLocations[1:])
     connected = {foodLocations[0]}
     treeCost = 0
 
     while unconnected:
         cost, nextFood = min(
-            (util.manhattanDistance(connectedFood, food), food)
+            (_foodDistanceMap(connectedFood, problem)[food], food)
             for connectedFood in connected
             for food in unconnected
         )
@@ -572,7 +573,7 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
         distances[food]
         for food in foodLocations
     )
-    foodTree = _foodManhattanTreeCost(foodLocations)
+    foodTree = _foodMazeTreeCost(foodLocations, problem)
     return max(farthestFood, nearestFood + foodTree)
 
 class ClosestDotSearchAgent(SearchAgent):
