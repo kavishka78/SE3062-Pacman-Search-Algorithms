@@ -515,6 +515,11 @@ def _foodDistanceMap(start: Tuple[int, int], problem: FoodSearchProblem):
 
 def _foodMazeTreeCost(foodLocations: List[Tuple[int, int]],
                       problem: FoodSearchProblem):
+    cache = problem.heuristicInfo.setdefault('foodTreeCosts', {})
+    foodKey = tuple(foodLocations)
+    if foodKey in cache:
+        return cache[foodKey]
+
     unconnected = set(foodLocations[1:])
     connected = {foodLocations[0]}
     treeCost = 0
@@ -529,6 +534,7 @@ def _foodMazeTreeCost(foodLocations: List[Tuple[int, int]],
         connected.add(nextFood)
         unconnected.remove(nextFood)
 
+    cache[foodKey] = treeCost
     return treeCost
 
 def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
