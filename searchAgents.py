@@ -34,6 +34,7 @@ description for details.
 Good luck and happy searching!
 """
 
+from itertools import permutations
 from typing import List, Tuple, Any
 from game import Directions
 from game import Agent
@@ -295,15 +296,17 @@ class CornersProblem(search.SearchProblem):
         Returns the start state (in your state space, not the full Pacman state
         space)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        visitedCorners = tuple(
+            self.startingPosition == corner for corner in self.corners
+        )
+        return (self.startingPosition, visitedCorners)
 
     def isGoalState(self, state: Any):
         """
         Returns whether this search state is a goal state of the problem.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        _, visitedCorners = state
+        return all(visitedCorners)
 
     def getSuccessors(self, state: Any):
         """
@@ -325,7 +328,20 @@ class CornersProblem(search.SearchProblem):
             #   nextx, nexty = int(x + dx), int(y + dy)
             #   hitsWall = self.walls[nextx][nexty]
 
-            "*** YOUR CODE HERE ***"
+            currentPosition, visitedCorners = state
+            x, y = currentPosition
+            dx, dy = Actions.directionToVector(action)
+            nextPosition = (int(x + dx), int(y + dy))
+
+            if not self.walls[nextPosition[0]][nextPosition[1]]:
+                nextVisitedCorners = list(visitedCorners)
+                if nextPosition in self.corners:
+                    cornerIndex = self.corners.index(nextPosition)
+                    nextVisitedCorners[cornerIndex] = True
+
+                successors.append(
+                    ((nextPosition, tuple(nextVisitedCorners)), action, 1)
+                )
 
         self._expanded += 1 # DO NOT CHANGE
         return successors
@@ -357,11 +373,61 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     shortest path from the state to a goal of the problem; i.e.  it should be
     admissible (as well as consistent).
     """
-    corners = problem.corners # These are the corner coordinates
-    walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
+    position, visitedCorners = state
+    remainingCorners = tuple(
+        corner
+        for corner, visited in zip(problem.corners, visitedCorners)
+        if not visited
+    )
 
-    "*** YOUR CODE HERE ***"
-    return 0 # Default to trivial solution
+    if not remainingCorners:
+        return 0
+
+    # Build each corner's exact maze-distance map once.  These distances are
+    # lower bounds on any route that must visit the remaining corners.
+    if not hasattr(problem, '_cornerDistanceMaps'):
+        distanceMaps = {}
+        for corner in problem.corners:
+            distances = {corner: 0}
+            fringe = util.Queue()
+            fringe.push(corner)
+
+            while not fringe.isEmpty():
+                currentPosition = fringe.pop()
+                currentDistance = distances[currentPosition]
+                x, y = currentPosition
+
+                for action in [Directions.NORTH, Directions.SOUTH,
+                               Directions.EAST, Directions.WEST]:
+                    dx, dy = Actions.directionToVector(action)
+                    nextPosition = (int(x + dx), int(y + dy))
+                    if (not problem.walls[nextPosition[0]][nextPosition[1]]
+                            and nextPosition not in distances):
+                        distances[nextPosition] = currentDistance + 1
+                        fringe.push(nextPosition)
+
+            distanceMaps[corner] = distances
+
+        problem._cornerDistanceMaps = distanceMaps
+
+    distanceMaps = problem._cornerDistanceMaps
+
+    def mazeDistance(start, goal):
+        return distanceMaps[goal][start]
+
+    # The cheapest order through the remaining corners is a lower bound on the
+    # actual route cost.  There are at most four corners, so trying every order
+    # is small and gives a much tighter estimate than Manhattan distance.
+    bestEstimate = float('inf')
+    for order in permutations(remainingCorners):
+        estimate = mazeDistance(position, order[0])
+        estimate += sum(
+            mazeDistance(order[index], order[index + 1])
+            for index in range(len(order) - 1)
+        )
+        bestEstimate = min(bestEstimate, estimate)
+
+    return bestEstimate
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
