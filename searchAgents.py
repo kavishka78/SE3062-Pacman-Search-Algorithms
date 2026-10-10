@@ -491,6 +491,56 @@ class AStarFoodSearchAgent(SearchAgent):
         self.searchFunction = lambda prob: search.aStarSearch(prob, foodHeuristic)
         self.searchType = FoodSearchProblem
 
+def _foodDistanceMap(start: Tuple[int, int], problem: FoodSearchProblem):
+    distanceMaps = problem.heuristicInfo.setdefault('foodDistanceMaps', {})
+    if start not in distanceMaps:
+        distances = {start: 0}
+        fringe = util.Queue()
+        fringe.push(start)
+
+        while not fringe.isEmpty():
+            position = fringe.pop()
+            x, y = position
+            for action in [Directions.NORTH, Directions.SOUTH,
+                           Directions.EAST, Directions.WEST]:
+                dx, dy = Actions.directionToVector(action)
+                nextPosition = (int(x + dx), int(y + dy))
+                if (not problem.walls[nextPosition[0]][nextPosition[1]]
+                        and nextPosition not in distances):
+                    distances[nextPosition] = distances[position] + 1
+                    fringe.push(nextPosition)
+
+        distanceMaps[start] = distances
+    return distanceMaps[start]
+
+def _foodMazeTreeCost(foodLocations: List[Tuple[int, int]],
+                      problem: FoodSearchProblem):
+    cache = problem.heuristicInfo.setdefault('foodTreeCosts', {})
+    foodKey = tuple(foodLocations)
+    if foodKey in cache:
+        return cache[foodKey]
+
+    unconnected = set(foodLocations[1:])
+    connected = {foodLocations[0]}
+    treeCost = 0
+
+    while unconnected:
+        cost = float('inf')
+        nextFood = None
+        for connectedFood in connected:
+            distances = _foodDistanceMap(connectedFood, problem)
+            for food in unconnected:
+                candidateCost = distances[food]
+                if candidateCost < cost:
+                    cost, nextFood = candidateCost, food
+
+        treeCost += cost
+        connected.add(nextFood)
+        unconnected.remove(nextFood)
+
+    cache[foodKey] = treeCost
+    return treeCost
+
 def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     """
     Your heuristic for the FoodSearchProblem goes here.
@@ -518,10 +568,26 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     value, try: problem.heuristicInfo['wallCount'] = problem.walls.count()
     Subsequent calls to this heuristic can access
     problem.heuristicInfo['wallCount']
+
+    The farthest-food distance and nearest-food-plus-MST estimates are lower
+    bounds; the maximum of the two preserves admissibility and consistency.
     """
     position, foodGrid = state
-    "*** YOUR CODE HERE ***"
-    return 0
+    foodLocations = foodGrid.asList()
+    if not foodLocations:
+        return 0
+
+    distances = _foodDistanceMap(position, problem)
+    farthestFood = max(
+        distances[food]
+        for food in foodLocations
+    )
+    nearestFood = min(
+        distances[food]
+        for food in foodLocations
+    )
+    foodTree = _foodMazeTreeCost(foodLocations, problem)
+    return max(farthestFood, nearestFood + foodTree)
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
