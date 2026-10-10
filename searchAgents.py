@@ -491,6 +491,28 @@ class AStarFoodSearchAgent(SearchAgent):
         self.searchFunction = lambda prob: search.aStarSearch(prob, foodHeuristic)
         self.searchType = FoodSearchProblem
 
+def _foodDistanceMap(start: Tuple[int, int], problem: FoodSearchProblem):
+    distanceMaps = problem.heuristicInfo.setdefault('foodDistanceMaps', {})
+    if start not in distanceMaps:
+        distances = {start: 0}
+        fringe = util.Queue()
+        fringe.push(start)
+
+        while not fringe.isEmpty():
+            position = fringe.pop()
+            x, y = position
+            for action in [Directions.NORTH, Directions.SOUTH,
+                           Directions.EAST, Directions.WEST]:
+                dx, dy = Actions.directionToVector(action)
+                nextPosition = (int(x + dx), int(y + dy))
+                if (not problem.walls[nextPosition[0]][nextPosition[1]]
+                        and nextPosition not in distances):
+                    distances[nextPosition] = distances[position] + 1
+                    fringe.push(nextPosition)
+
+        distanceMaps[start] = distances
+    return distanceMaps[start]
+
 def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     """
     Your heuristic for the FoodSearchProblem goes here.
@@ -524,8 +546,9 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     if not foodLocations:
         return 0
 
+    distances = _foodDistanceMap(position, problem)
     return max(
-        util.manhattanDistance(position, food)
+        distances[food]
         for food in foodLocations
     )
 
