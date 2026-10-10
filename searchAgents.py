@@ -525,11 +525,15 @@ def _foodMazeTreeCost(foodLocations: List[Tuple[int, int]],
     treeCost = 0
 
     while unconnected:
-        cost, nextFood = min(
-            (_foodDistanceMap(connectedFood, problem)[food], food)
-            for connectedFood in connected
-            for food in unconnected
-        )
+        cost = float('inf')
+        nextFood = None
+        for connectedFood in connected:
+            distances = _foodDistanceMap(connectedFood, problem)
+            for food in unconnected:
+                candidateCost = distances[food]
+                if candidateCost < cost:
+                    cost, nextFood = candidateCost, food
+
         treeCost += cost
         connected.add(nextFood)
         unconnected.remove(nextFood)
@@ -564,6 +568,9 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     value, try: problem.heuristicInfo['wallCount'] = problem.walls.count()
     Subsequent calls to this heuristic can access
     problem.heuristicInfo['wallCount']
+
+    The farthest-food distance and nearest-food-plus-MST estimates are lower
+    bounds; the maximum of the two preserves admissibility and consistency.
     """
     position, foodGrid = state
     foodLocations = foodGrid.asList()
